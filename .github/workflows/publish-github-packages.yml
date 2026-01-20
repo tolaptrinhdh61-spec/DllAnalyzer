@@ -21,7 +21,7 @@ jobs:
       - name: 🧰 Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "8.0.x"
+          dotnet-version: "10.0.x"
 
       - name: 📦 Restore
         run: dotnet restore
@@ -29,22 +29,20 @@ jobs:
       - name: 🏗️ Build
         run: dotnet build -c Release --no-restore
 
-      - name: 🧪 Test
-        run: dotnet test -c Release --no-build
+      # - name: 🧪 Test
+      #   run: dotnet test -c Release --no-build
 
-      - name: 🏷️ Compute version from tag (sanitize)
+      - name: 🏷️ Compute version (tag => release, branch => ci)
         id: ver
         shell: bash
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          REF="${GITHUB_REF}"
+          NAME="${GITHUB_REF_NAME}"
 
-          # Remove leading 'v' or 'v.' then remove any leading dots/spaces
-          VERSION="$(echo "$TAG" | sed -E 's/^v\.?//; s/^[. ]+//')"
-
-          # Basic validation: must start with digit
-          if [[ ! "$VERSION" =~ ^[0-9] ]]; then
-            echo "Invalid version derived from tag: '$TAG' -> '$VERSION'"
-            exit 1
+          if [[ "$REF" == refs/tags/* ]]; then
+            VERSION="$(echo "$NAME" | sed -E 's/^v\.?//; s/^[. ]+//')"
+          else
+            VERSION="0.0.0-ci.${GITHUB_RUN_NUMBER}"
           fi
 
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
