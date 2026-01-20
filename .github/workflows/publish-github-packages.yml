@@ -1,0 +1,76 @@
+name: publish-github-packages
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🧾 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: 📦 Restore
+        run: dotnet restore
+
+      - name: 🏗️ Build
+        run: dotnet build -c Release --no-restore
+
+      - name: 🧪 Test
+        run: dotnet test -c Release --no-build
+
+      - name: 🏷️ Compute version from tag
+        id: ver
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: 📦 Pack
+        run: |
+          dotnet pack -c Release \
+            -p:PackageVersion=${{ steps.ver.outputs.version }} \
+            -o ./artifacts
+
+      - name: 🔐 Add GitHub Packages source
+        run: |
+          dotnet nuget remove source github || true
+          dotnet nuget add source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --name "github" \
+            --username "${{ github.actor }}" \
+            --password "${{ secrets.GITHUB_TOKEN }}" \
+            --store-password-in-clear-text
+
+      - name: 🚀 Publish to GitHub Packages
+        run: |
+          dotnet nuget push "./artifacts/*.nupkg" \
+            --source "github" \
+            --skip-duplicate
+
+      - name: 🧹 Clear NuGet caches (avoid stale)
+        run: dotnet nuget locals all --clear
+
+      - name: ⬇️ Install tool from GitHub Packages (smoke test)
+        run: |
+          TOOL_ID="Your.Tool.PackageId"
+          TOOL_CMD="yourtool"
+
+          dotnet tool install -g "$TOOL_ID" \
+            --version "${{ steps.ver.outputs.version }}" \
+            --add-source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+
+          "$TOOL_CMD" --version

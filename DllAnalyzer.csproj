@@ -5,6 +5,10 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Publish to GitHub Packages -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>dllanalyzer</ToolCommandName>
+    <PackageId>dh.cs.dllanalyzer</PackageId>
   </PropertyGroup>
 
   <ItemGroup>
