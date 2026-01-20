@@ -1,0 +1,2 @@
+- Dùng `Mono.Cecil` để tìm các thông tin của dll, exe
+- Chạy được trên window, linux, pipeline, github actions

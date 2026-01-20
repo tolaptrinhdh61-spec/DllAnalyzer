@@ -1,0 +1,117 @@
+## =========================
+## .NET / Visual Studio
+## =========================
+
+# Build results
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+*.log
+
+# Visual Studio files
+.vs/
+.vscode/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.rsuser
+*.sln.docstates
+
+# Visual Studio cache / temp
+ipch/
+*.aps
+*.ncb
+*.opendb
+*.VC.db
+*.VC.VC.opendb
+
+# Rider / JetBrains
+.idea/
+*.sln.iml
+
+# MonoDevelop / Xamarin Studio
+*.userprefs
+
+# NuGet
+*.nupkg
+*.snupkg
+# packages/ (cũ) - nếu repo bạn còn dùng packages.config
+packages/
+# NuGet cache artifacts
+.nuget/
+
+# dotnet tools / local tool restore artifacts
+# (thường KHÔNG ignore file manifest, chỉ ignore folder cache nếu có)
+.dotnet/
+# Paket
+.paket/
+
+# Test results
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+
+# BenchmarkDotNet
+BenchmarkDotNet.Artifacts/
+
+# Code coverage tools
+coverage/
+coverage.* 
+.opencover.xml
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# Publish outputs
+**/[Pp]ublish/
+**/[Pp]ublished/
+**/out/
+**/artifacts/
+
+# Local settings
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+
+# Environment files
+.env
+.env.*
+
+# OS generated
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# DotCover
+*.dotCover
+
+# NCrunch
+*.ncrunch*
+.*crunch*.local.xml
+
+# StyleCop
+StyleCopReport.xml
+
+# Azure / Functions
+local.settings.json
+
+# SQLite / local db
+*.db
+*.db-shm
+*.db-wal
+
+# Node (nếu repo có front-end kèm theo)
+node_modules/
+dist/
+build/
+
+# Logs from web servers / IIS Express
+iisexpress/
