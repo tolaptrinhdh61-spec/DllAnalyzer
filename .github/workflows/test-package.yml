@@ -1,0 +1,19 @@
+name: Test Tool
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Install and run tool
+        run: |
+          dotnet tool install --global dh.cs.dllanalyzer --version 1.0.0
+          dllanalyzer
