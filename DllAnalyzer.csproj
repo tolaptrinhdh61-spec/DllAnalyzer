@@ -5,14 +5,28 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <!-- Publish to GitHub Packages -->
+    <!-- Package Configuration -->
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>dllanalyzer</ToolCommandName>
     <PackageId>dh.cs.dllanalyzer</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>ONG HAU</Authors>
+    <Company>DH Solutions</Company>
+    <Description>A tool to analyze .NET DLL files and extract type information, methods, properties, and external references</Description>
+    <RepositoryUrl>https://github.com/tolaptrinhdh61-spec/DllAnalyzer</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/tolaptrinhdh61-spec/DllAnalyzer</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <!-- GitHub Packages specific -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Mono.Cecil" Version="0.11.6" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
 </Project>

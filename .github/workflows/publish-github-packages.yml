@@ -1,84 +1,46 @@
-name: publish-github-packages
+name: Publish to GitHub Packages
 
 on:
   push:
     tags:
-      - "v*.*.*"
-  workflow_dispatch: {}
-
-permissions:
-  contents: read
-  packages: write
+      - "v*.*.*" # Trigger khi push tag như v1.0.0
+  workflow_dispatch: # Cho phép chạy manual từ GitHub UI
+    inputs:
+      version:
+        description: "Version to publish"
+        required: false
+        default: "1.0.0"
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # Quan trọng: phải có permission này
 
     steps:
-      - name: 🧾 Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 🧰 Setup .NET
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "10.0.x"
+          dotnet-version: "8.0.x" # Thay đổi về 8.0 vì 10.0 chưa ra
 
-      - name: 📦 Restore
+      - name: Restore dependencies
         run: dotnet restore
 
-      - name: 🏗️ Build
-        run: dotnet build -c Release --no-restore
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
 
-      # - name: 🧪 Test
-      #   run: dotnet test -c Release --no-build
+      - name: Pack
+        run: dotnet pack --configuration Release --no-build --output ./nupkg
 
-      - name: 🏷️ Compute version (tag => release, branch => ci)
-        id: ver
-        shell: bash
+      - name: Push to GitHub Packages
         run: |
-          REF="${GITHUB_REF}"
-          NAME="${GITHUB_REF_NAME}"
-
-          if [[ "$REF" == refs/tags/* ]]; then
-            VERSION="$(echo "$NAME" | sed -E 's/^v\.?//; s/^[. ]+//')"
-          else
-            VERSION="0.0.0-ci.${GITHUB_RUN_NUMBER}"
-          fi
-
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Using version: $VERSION"
-
-      - name: 📦 Pack
-        run: |
-          dotnet pack -c Release \
-            -p:PackageVersion=${{ steps.ver.outputs.version }} \
-            -o ./artifacts
-
-      - name: 🔐 Add GitHub Packages source
-        run: |
-          dotnet nuget remove source github || true
-          dotnet nuget add source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
-            --name "github" \
-            --username "${{ github.actor }}" \
-            --password "${{ secrets.GITHUB_TOKEN }}" \
-            --store-password-in-clear-text
-
-      - name: 🚀 Publish to GitHub Packages
-        run: |
-          dotnet nuget push "./artifacts/*.nupkg" \
-            --source "github" \
+          dotnet nuget push "./nupkg/*.nupkg" \
+            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --api-key ${{ secrets.GITHUB_TOKEN }} \
             --skip-duplicate
-
-      - name: 🧹 Clear NuGet caches (avoid stale)
-        run: dotnet nuget locals all --clear
-
-      - name: ⬇️ Install tool from GitHub Packages (smoke test)
-        run: |
-          TOOL_ID="Your.Tool.PackageId"
-          TOOL_CMD="yourtool"
-
-          dotnet tool install -g "$TOOL_ID" \
-            --version "${{ steps.ver.outputs.version }}" \
-            --add-source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
-
-          "$TOOL_CMD" --version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
