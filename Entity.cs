@@ -37,11 +37,7 @@ namespace DllAnalyzer
                     TargetFramework = GetTargetFramework(assembly),
                     Architecture = assembly.MainModule.Architecture.ToString(),
                     Kind = assembly.MainModule.Kind.ToString(),
-                    Location = dllPath,
-                    Types = new List<TypeInfo>(),
-                    TypeForms = new List<TypeInfo>(),
-                    TypeClasses = new List<TypeInfo>(),
-                    TypeStaticClasses = new List<TypeInfo>()
+                    Location = dllPath
                 };
 
                 foreach (var type in assembly.MainModule.Types)
@@ -76,9 +72,7 @@ namespace DllAnalyzer
                     };
 
                     if (isForm)
-                    {
                         typeInfo.FormText = GetFormText(type);
-                    }
 
                     dllInfo.Types.Add(typeInfo);
 
@@ -108,21 +102,16 @@ namespace DllAnalyzer
                 .FirstOrDefault(a => a.AttributeType.FullName == "System.Runtime.Versioning.TargetFrameworkAttribute");
 
             if (targetFrameworkAttr != null && targetFrameworkAttr.ConstructorArguments.Count > 0)
-            {
                 return targetFrameworkAttr.ConstructorArguments[0].Value?.ToString();
-            }
 
             return assembly.MainModule.Runtime.ToString();
         }
 
         private string GetTypeCategory(TypeDefinition type)
         {
-            if (type.IsInterface)
-                return "Interface";
-            if (type.IsEnum)
-                return "Enum";
-            if (type.IsValueType && !type.IsEnum)
-                return "Struct";
+            if (type.IsInterface) return "Interface";
+            if (type.IsEnum) return "Enum";
+            if (type.IsValueType && !type.IsEnum) return "Struct";
 
             if (type.IsClass)
             {
@@ -184,7 +173,10 @@ namespace DllAnalyzer
                     }
                 }
             }
-            catch { }
+            catch
+            {
+                // ignore
+            }
 
             return null;
         }
@@ -209,14 +201,11 @@ namespace DllAnalyzer
                     IsStatic = field.IsStatic,
                     IsReadOnly = field.IsInitOnly,
                     IsLiteral = field.IsLiteral,
-                    ConstantValue = field.HasConstant ? field.Constant?.ToString() : null,
-                    References = new List<MemberReference>()
+                    ConstantValue = field.HasConstant ? field.Constant?.ToString() : null
                 };
 
                 if (isForm && IsControlType(field.FieldType))
-                {
                     fieldInfo.ControlProperties = GetControlProperties(field);
-                }
 
                 AnalyzeFieldReferences(field, fieldInfo);
 
@@ -256,7 +245,7 @@ namespace DllAnalyzer
                                     ReferenceType = instruction.OpCode.Code == Code.Stfld ? "Write" : "Read"
                                 };
 
-                                if (!fieldInfo.References!.Any(r =>
+                                if (!fieldInfo.References.Any(r =>
                                     r.ReferencedIn == refInfo.ReferencedIn &&
                                     r.ReferenceType == refInfo.ReferenceType))
                                 {
@@ -275,8 +264,6 @@ namespace DllAnalyzer
 
         private bool IsControlType(TypeReference typeRef)
         {
-            if (typeRef == null) return false;
-
             var typeName = typeRef.FullName;
 
             if (typeName.StartsWith("System.Windows.Forms.") ||
@@ -292,11 +279,12 @@ namespace DllAnalyzer
             {
                 var typeDef = typeRef.Resolve();
                 if (typeDef != null && typeDef.BaseType != null)
-                {
                     return IsControlType(typeDef.BaseType);
-                }
             }
-            catch { }
+            catch
+            {
+                // ignore
+            }
 
             return false;
         }
@@ -380,8 +368,6 @@ namespace DllAnalyzer
 
         private string? ExtractValue(Instruction instruction)
         {
-            if (instruction == null) return null;
-
             try
             {
                 switch (instruction.OpCode.Code)
@@ -404,11 +390,7 @@ namespace DllAnalyzer
                     case Code.Ldc_I4_M1: return "-1";
 
                     case Code.Ldc_I4:
-                        var intValue = instruction.Operand as int?;
-                        if (intValue.HasValue)
-                        {
-                            return intValue.Value.ToString();
-                        }
+                        if (instruction.Operand is int i) return i.ToString();
                         break;
 
                     case Code.Ldc_R4:
@@ -419,15 +401,15 @@ namespace DllAnalyzer
                         return instruction.Operand?.ToString();
 
                     case Code.Ldsfld:
-                        var fieldRef = instruction.Operand as FieldReference;
-                        if (fieldRef != null)
-                        {
+                        if (instruction.Operand is FieldReference fieldRef)
                             return $"{fieldRef.DeclaringType.Name}.{fieldRef.Name}";
-                        }
                         break;
                 }
             }
-            catch { }
+            catch
+            {
+                // ignore
+            }
 
             return null;
         }
@@ -451,8 +433,7 @@ namespace DllAnalyzer
                     CanWrite = setter != null,
                     IsStatic = (getter ?? setter)?.IsStatic ?? false,
                     GetterVisibility = getter != null ? GetVisibility(getter) : null,
-                    SetterVisibility = setter != null ? GetVisibility(setter) : null,
-                    References = new List<MemberReference>()
+                    SetterVisibility = setter != null ? GetVisibility(setter) : null
                 };
 
                 AnalyzePropertyReferences(prop, propInfo, type);
@@ -496,7 +477,7 @@ namespace DllAnalyzer
                                         ReferenceType = isSetter ? "Write" : "Read"
                                     };
 
-                                    if (!propInfo.References!.Any(r =>
+                                    if (!propInfo.References.Any(r =>
                                         r.ReferencedIn == refInfo.ReferencedIn &&
                                         r.ReferenceType == refInfo.ReferenceType))
                                     {
@@ -556,7 +537,6 @@ namespace DllAnalyzer
                     IsAbstract = method.IsAbstract,
                     IsFinal = method.IsFinal,
                     IsAsync = IsAsyncMethod(method),
-                    References = new List<MemberReference>(),
                     HasBody = method.HasBody
                 };
 
@@ -600,11 +580,8 @@ namespace DllAnalyzer
                                 !methodRef.Name.StartsWith("add_") &&
                                 !methodRef.Name.StartsWith("remove_"))
                             {
-                                if (!methodInfo.References!.Any(r =>
-                                    r.MemberIdFullName == refInfo.MemberIdFullName))
-                                {
+                                if (!methodInfo.References.Any(r => r.MemberIdFullName == refInfo.MemberIdFullName))
                                     methodInfo.References.Add(refInfo);
-                                }
                             }
                         }
                     }
@@ -629,7 +606,7 @@ namespace DllAnalyzer
                                 ReferenceType = (instruction.OpCode.Code == Code.Stfld || instruction.OpCode.Code == Code.Stsfld) ? "Write" : "Read"
                             };
 
-                            if (!methodInfo.References!.Any(r =>
+                            if (!methodInfo.References.Any(r =>
                                 r.MemberIdFullName == refInfo.MemberIdFullName &&
                                 r.ReferenceType == refInfo.ReferenceType))
                             {
@@ -688,8 +665,7 @@ namespace DllAnalyzer
                     IdFullName = $"{type.FullName}..ctor({paramSignature})",
                     Parameters = paramStrings.ToList(),
                     Visibility = GetVisibility(ctor),
-                    IsStatic = ctor.IsStatic,
-                    References = new List<MemberReference>()
+                    IsStatic = ctor.IsStatic
                 };
 
                 AnalyzeConstructorReferences(ctor, ctorInfo, type);
@@ -731,11 +707,8 @@ namespace DllAnalyzer
                                 !methodRef.Name.StartsWith("add_") &&
                                 !methodRef.Name.StartsWith("remove_"))
                             {
-                                if (!ctorInfo.References!.Any(r =>
-                                    r.MemberIdFullName == refInfo.MemberIdFullName))
-                                {
+                                if (!ctorInfo.References.Any(r => r.MemberIdFullName == refInfo.MemberIdFullName))
                                     ctorInfo.References.Add(refInfo);
-                                }
                             }
                         }
                     }
@@ -760,7 +733,7 @@ namespace DllAnalyzer
                                 ReferenceType = (instruction.OpCode.Code == Code.Stfld || instruction.OpCode.Code == Code.Stsfld) ? "Write" : "Read"
                             };
 
-                            if (!ctorInfo.References!.Any(r =>
+                            if (!ctorInfo.References.Any(r =>
                                 r.MemberIdFullName == refInfo.MemberIdFullName &&
                                 r.ReferenceType == refInfo.ReferenceType))
                             {
@@ -819,9 +792,9 @@ namespace DllAnalyzer
                 TargetFramework = dllInfo.TargetFramework,
                 Architecture = dllInfo.Architecture,
                 Kind = dllInfo.Kind,
-                TypeForms = dllInfo.TypeForms?.Select(t => CreateTypeSummary(t)).ToList(),
-                TypeClasses = dllInfo.TypeClasses?.Select(t => CreateTypeSummary(t)).ToList(),
-                TypeStaticClasses = dllInfo.TypeStaticClasses?.Select(t => CreateTypeSummary(t)).ToList()
+                TypeForms = dllInfo.TypeForms.Select(CreateTypeSummary).ToList(),
+                TypeClasses = dllInfo.TypeClasses.Select(CreateTypeSummary).ToList(),
+                TypeStaticClasses = dllInfo.TypeStaticClasses.Select(CreateTypeSummary).ToList()
             };
 
             var options = new JsonSerializerOptions
@@ -843,61 +816,45 @@ namespace DllAnalyzer
                 Name = type.Name,
                 Namespace = type.Namespace,
                 TypeCategory = type.TypeCategory,
-                FormText = type.FormText,
-                Members = new List<string>()
+                FormText = type.FormText
             };
 
-            if (type.Fields != null)
+            foreach (var field in type.Fields)
             {
-                foreach (var field in type.Fields)
-                {
-                    if (!string.IsNullOrEmpty(field.IdFullName))
-                        summary.Members!.Add(field.IdFullName);
-                }
+                if (!string.IsNullOrEmpty(field.IdFullName))
+                    summary.Members.Add(field.IdFullName);
             }
 
-            if (type.Properties != null)
+            foreach (var prop in type.Properties)
             {
-                foreach (var prop in type.Properties)
-                {
-                    if (!string.IsNullOrEmpty(prop.IdFullName))
-                        summary.Members!.Add(prop.IdFullName);
-                }
+                if (!string.IsNullOrEmpty(prop.IdFullName))
+                    summary.Members.Add(prop.IdFullName);
             }
 
-            if (type.Methods != null)
+            foreach (var method in type.Methods)
             {
-                foreach (var method in type.Methods)
-                {
-                    if (!string.IsNullOrEmpty(method.IdFullName))
-                        summary.Members!.Add(method.IdFullName);
+                if (!string.IsNullOrEmpty(method.IdFullName))
+                    summary.Members.Add(method.IdFullName);
 
-                    var idWithoutArgs = $"{type.FullName}.{method.Name}()";
-                    if (!summary.Members!.Contains(idWithoutArgs))
-                        summary.Members!.Add(idWithoutArgs);
-                }
+                var idWithoutArgs = $"{type.FullName}.{method.Name}()";
+                if (!summary.Members.Contains(idWithoutArgs))
+                    summary.Members.Add(idWithoutArgs);
             }
 
-            if (type.Constructors != null)
+            foreach (var ctor in type.Constructors)
             {
-                foreach (var ctor in type.Constructors)
-                {
-                    if (!string.IsNullOrEmpty(ctor.IdFullName))
-                        summary.Members!.Add(ctor.IdFullName);
+                if (!string.IsNullOrEmpty(ctor.IdFullName))
+                    summary.Members.Add(ctor.IdFullName);
 
-                    var idWithoutArgs = $"{type.FullName}..ctor()";
-                    if (!summary.Members!.Contains(idWithoutArgs))
-                        summary.Members!.Add(idWithoutArgs);
-                }
+                var idWithoutArgs = $"{type.FullName}..ctor()";
+                if (!summary.Members.Contains(idWithoutArgs))
+                    summary.Members.Add(idWithoutArgs);
             }
 
-            if (type.Events != null)
+            foreach (var evt in type.Events)
             {
-                foreach (var evt in type.Events)
-                {
-                    if (!string.IsNullOrEmpty(evt.IdFullName))
-                        summary.Members!.Add(evt.IdFullName);
-                }
+                if (!string.IsNullOrEmpty(evt.IdFullName))
+                    summary.Members.Add(evt.IdFullName);
             }
 
             return summary;
@@ -909,20 +866,12 @@ namespace DllAnalyzer
             {
                 AssemblyName = dllInfo.AssemblyName,
                 FullName = dllInfo.FullName,
-                Version = dllInfo.Version,
-                ExternalCalls = new List<ExternalCallInfo>(),
-                ExternalCallsIdFullName = new List<string>()
+                Version = dllInfo.Version
             };
 
-            if (dllInfo.Types != null)
-            {
-                foreach (var type in dllInfo.Types)
-                {
-                    AnalyzeTypeForExternalCalls(type, externalRefs.ExternalCalls);
-                }
-            }
+            foreach (var type in dllInfo.Types)
+                AnalyzeTypeForExternalCalls(type, externalRefs.ExternalCalls);
 
-            // Extract unique IdFullName without args and ()
             var uniqueIdFullNames = externalRefs.ExternalCalls
                 .Where(ec => !string.IsNullOrEmpty(ec.CalledMemberFullName))
                 .Select(ec => RemoveMethodArgs(ec.CalledMemberFullName!))
@@ -945,60 +894,52 @@ namespace DllAnalyzer
 
         private string RemoveMethodArgs(string fullName)
         {
-            // Remove args from: "Namespace.Class.Method(args)" -> "Namespace.Class.Method"
             var parenIndex = fullName.IndexOf('(');
-            if (parenIndex > 0)
-            {
-                return fullName.Substring(0, parenIndex);
-            }
-            return fullName;
+            return parenIndex > 0 ? fullName.Substring(0, parenIndex) : fullName;
         }
 
         private void AnalyzeTypeForExternalCalls(TypeInfo type, List<ExternalCallInfo> externalCalls)
         {
-            if (type.Methods == null) return;
-
             foreach (var method in type.Methods)
             {
-                if (!method.HasBody || method.References == null) continue;
+                if (!method.HasBody) continue;
 
                 var triggerInfo = FindMethodTrigger(type, method.Name);
 
                 foreach (var reference in method.References)
                 {
-                    if (!string.IsNullOrEmpty(reference.MemberIdFullName))
+                    if (string.IsNullOrEmpty(reference.MemberIdFullName))
+                        continue;
+
+                    var typeName = ExtractTypeFromIdFullName(reference.MemberIdFullName);
+                    if (!IsInternalType(typeName) && IsRelevantExternalType(typeName))
                     {
-                        var typeName = ExtractTypeFromIdFullName(reference.MemberIdFullName);
-
-                        if (!IsInternalType(typeName) && IsRelevantExternalType(typeName))
+                        var externalCall = new ExternalCallInfo
                         {
-                            var externalCall = new ExternalCallInfo
+                            CalledType = typeName,
+                            CalledMember = reference.MemberName,
+                            CalledMemberFullName = reference.MemberIdFullName,
+                            CalledMemberType = reference.MemberType,
+                            CalledFrom = new CalledFromInfo
                             {
-                                CalledType = typeName,
-                                CalledMember = reference.MemberName,
-                                CalledMemberFullName = reference.MemberIdFullName,
-                                CalledMemberType = reference.MemberType,
-                                CalledFrom = new CalledFromInfo
-                                {
-                                    TypeFullName = type.FullName,
-                                    TypeName = type.Name,
-                                    TypeCategory = type.TypeCategory,
-                                    FormText = type.FormText,
-                                    MethodName = method.Name,
-                                    MethodFullName = method.IdFullName,
-                                    TriggerControl = triggerInfo?.ControlName,
-                                    TriggerControlText = triggerInfo?.ControlText,
-                                    TriggerEvent = triggerInfo?.EventName
-                                }
-                            };
-
-                            if (!externalCalls.Any(ec =>
-                                ec.CalledType == externalCall.CalledType &&
-                                ec.CalledMember == externalCall.CalledMember &&
-                                ec.CalledFrom?.MethodFullName == externalCall.CalledFrom?.MethodFullName))
-                            {
-                                externalCalls.Add(externalCall);
+                                TypeFullName = type.FullName,
+                                TypeName = type.Name,
+                                TypeCategory = type.TypeCategory,
+                                FormText = type.FormText,
+                                MethodName = method.Name,
+                                MethodFullName = method.IdFullName,
+                                TriggerControl = triggerInfo?.ControlName,
+                                TriggerControlText = triggerInfo?.ControlText,
+                                TriggerEvent = triggerInfo?.EventName
                             }
+                        };
+
+                        if (!externalCalls.Any(ec =>
+                            ec.CalledType == externalCall.CalledType &&
+                            ec.CalledMember == externalCall.CalledMember &&
+                            ec.CalledFrom?.MethodFullName == externalCall.CalledFrom?.MethodFullName))
+                        {
+                            externalCalls.Add(externalCall);
                         }
                     }
                 }
@@ -1013,9 +954,7 @@ namespace DllAnalyzer
                 var typePart = idFullName.Substring(0, lastDotBeforeMethod);
                 var secondLastDot = typePart.LastIndexOf('.');
                 if (secondLastDot > 0)
-                {
                     return typePart;
-                }
             }
 
             return idFullName;
@@ -1023,7 +962,7 @@ namespace DllAnalyzer
 
         private TriggerInfo? FindMethodTrigger(TypeInfo type, string? methodName)
         {
-            if (string.IsNullOrEmpty(methodName) || type.Fields == null)
+            if (string.IsNullOrEmpty(methodName))
                 return null;
 
             var parts = methodName.Split('_');
@@ -1033,12 +972,12 @@ namespace DllAnalyzer
                 var eventName = string.Join("_", parts.Skip(1));
 
                 var controlField = type.Fields.FirstOrDefault(f =>
-                    f.Name == controlName && f.ControlProperties != null);
+                    f.Name == controlName && f.ControlProperties.Count > 0);
 
                 if (controlField != null)
                 {
-                    var controlText = controlField.ControlProperties?.ContainsKey("Text") == true
-                        ? controlField.ControlProperties["Text"]
+                    var controlText = controlField.ControlProperties.TryGetValue("Text", out var text)
+                        ? text
                         : null;
 
                     return new TriggerInfo
@@ -1063,7 +1002,6 @@ namespace DllAnalyzer
 
         private bool IsRelevantExternalType(string typeName)
         {
-            // Skip System namespaces
             if (typeName.StartsWith("System."))
             {
                 if (typeName.StartsWith("System.Windows.Forms.")) return false;
@@ -1083,10 +1021,8 @@ namespace DllAnalyzer
                 return false;
             }
 
-            // Skip Microsoft namespaces
             if (typeName.StartsWith("Microsoft.")) return false;
 
-            // Skip common third-party libraries (không cần thiết)
             if (typeName.StartsWith("Newtonsoft.")) return false;
             if (typeName.StartsWith("RestSharp.")) return false;
             if (typeName.StartsWith("AutoMapper.")) return false;
@@ -1103,14 +1039,15 @@ namespace DllAnalyzer
             if (typeName.StartsWith("Janus.")) return false;
             if (typeName.StartsWith("DevExpress.")) return false;
             if (typeName.StartsWith("Telerik.")) return false;
-            if (typeName.StartsWith("Npgsql.")) return false;
 
-            // Include any other custom/internal types
             return true;
         }
     }
 
-    // Data Models
+    // =========================
+    // Data Models (non-null safe)
+    // =========================
+
     public class DllInfo
     {
         public string? AssemblyName { get; set; }
@@ -1123,10 +1060,11 @@ namespace DllAnalyzer
         public string? Architecture { get; set; }
         public string? Kind { get; set; }
         public string? Location { get; set; }
-        public List<TypeInfo>? Types { get; set; }
-        public List<TypeInfo>? TypeForms { get; set; }
-        public List<TypeInfo>? TypeClasses { get; set; }
-        public List<TypeInfo>? TypeStaticClasses { get; set; }
+
+        public List<TypeInfo> Types { get; set; } = new();
+        public List<TypeInfo> TypeForms { get; set; } = new();
+        public List<TypeInfo> TypeClasses { get; set; } = new();
+        public List<TypeInfo> TypeStaticClasses { get; set; } = new();
     }
 
     public class TypeInfo
@@ -1136,6 +1074,7 @@ namespace DllAnalyzer
         public string? Namespace { get; set; }
         public string? TypeCategory { get; set; }
         public string? FormText { get; set; }
+
         public bool IsPublic { get; set; }
         public bool IsAbstract { get; set; }
         public bool IsSealed { get; set; }
@@ -1143,14 +1082,17 @@ namespace DllAnalyzer
         public bool IsInterface { get; set; }
         public bool IsEnum { get; set; }
         public bool IsValueType { get; set; }
+
         public string? BaseType { get; set; }
-        public List<string>? Interfaces { get; set; }
-        public List<string>? NestedTypes { get; set; }
-        public List<FieldInfo>? Fields { get; set; }
-        public List<PropertyInfo>? Properties { get; set; }
-        public List<MethodInfo>? Methods { get; set; }
-        public List<ConstructorInfo>? Constructors { get; set; }
-        public List<EventInfo>? Events { get; set; }
+
+        public List<string> Interfaces { get; set; } = new();
+        public List<string> NestedTypes { get; set; } = new();
+
+        public List<FieldInfo> Fields { get; set; } = new();
+        public List<PropertyInfo> Properties { get; set; } = new();
+        public List<MethodInfo> Methods { get; set; } = new();
+        public List<ConstructorInfo> Constructors { get; set; } = new();
+        public List<EventInfo> Events { get; set; } = new();
     }
 
     public class MemberReference
@@ -1170,14 +1112,17 @@ namespace DllAnalyzer
         public string? FullName { get; set; }
         public string? IdFullName { get; set; }
         public string? Type { get; set; }
+
         public bool IsPublic { get; set; }
         public bool IsPrivate { get; set; }
         public bool IsStatic { get; set; }
         public bool IsReadOnly { get; set; }
         public bool IsLiteral { get; set; }
+
         public string? ConstantValue { get; set; }
-        public Dictionary<string, string>? ControlProperties { get; set; }
-        public List<MemberReference>? References { get; set; }
+
+        public Dictionary<string, string> ControlProperties { get; set; } = new();
+        public List<MemberReference> References { get; set; } = new();
     }
 
     public class PropertyInfo
@@ -1186,12 +1131,15 @@ namespace DllAnalyzer
         public string? FullName { get; set; }
         public string? IdFullName { get; set; }
         public string? Type { get; set; }
+
         public bool CanRead { get; set; }
         public bool CanWrite { get; set; }
         public bool IsStatic { get; set; }
+
         public string? GetterVisibility { get; set; }
         public string? SetterVisibility { get; set; }
-        public List<MemberReference>? References { get; set; }
+
+        public List<MemberReference> References { get; set; } = new();
     }
 
     public class MethodInfo
@@ -1201,17 +1149,21 @@ namespace DllAnalyzer
         public string? FullNameWithoutArgs { get; set; }
         public string? IdFullName { get; set; }
         public string? ReturnType { get; set; }
-        public List<string>? Parameters { get; set; }
-        public List<string>? ParameterTypes { get; set; }
-        public List<string>? ParameterNames { get; set; }
+
+        public List<string> Parameters { get; set; } = new();
+        public List<string> ParameterTypes { get; set; } = new();
+        public List<string> ParameterNames { get; set; } = new();
+
         public string? Visibility { get; set; }
+
         public bool IsStatic { get; set; }
         public bool IsVirtual { get; set; }
         public bool IsAbstract { get; set; }
         public bool IsFinal { get; set; }
         public bool IsAsync { get; set; }
         public bool HasBody { get; set; }
-        public List<MemberReference>? References { get; set; }
+
+        public List<MemberReference> References { get; set; } = new();
     }
 
     public class ConstructorInfo
@@ -1219,10 +1171,13 @@ namespace DllAnalyzer
         public string? FullNameWithArgs { get; set; }
         public string? FullNameWithoutArgs { get; set; }
         public string? IdFullName { get; set; }
-        public List<string>? Parameters { get; set; }
+
+        public List<string> Parameters { get; set; } = new();
+
         public string? Visibility { get; set; }
         public bool IsStatic { get; set; }
-        public List<MemberReference>? References { get; set; }
+
+        public List<MemberReference> References { get; set; } = new();
     }
 
     public class EventInfo
@@ -1243,9 +1198,10 @@ namespace DllAnalyzer
         public string? TargetFramework { get; set; }
         public string? Architecture { get; set; }
         public string? Kind { get; set; }
-        public List<TypeSummaryInfo>? TypeForms { get; set; }
-        public List<TypeSummaryInfo>? TypeClasses { get; set; }
-        public List<TypeSummaryInfo>? TypeStaticClasses { get; set; }
+
+        public List<TypeSummaryInfo> TypeForms { get; set; } = new();
+        public List<TypeSummaryInfo> TypeClasses { get; set; } = new();
+        public List<TypeSummaryInfo> TypeStaticClasses { get; set; } = new();
     }
 
     public class TypeSummaryInfo
@@ -1255,7 +1211,8 @@ namespace DllAnalyzer
         public string? Namespace { get; set; }
         public string? TypeCategory { get; set; }
         public string? FormText { get; set; }
-        public List<string>? Members { get; set; }
+
+        public List<string> Members { get; set; } = new();
     }
 
     public class ExternalReferencesInfo
@@ -1263,8 +1220,9 @@ namespace DllAnalyzer
         public string? AssemblyName { get; set; }
         public string? FullName { get; set; }
         public string? Version { get; set; }
-        public List<string>? ExternalCallsIdFullName { get; set; }
-        public List<ExternalCallInfo>? ExternalCalls { get; set; }
+
+        public List<string> ExternalCallsIdFullName { get; set; } = new();
+        public List<ExternalCallInfo> ExternalCalls { get; set; } = new();
     }
 
     public class ExternalCallInfo
