@@ -13,7 +13,7 @@ namespace DllAnalyzer
     {
         static void Main(string[] args)
         {
-            string dllPath = @"E:\o\vscode-dotnet\dhlibraries\DH.BLLCLS.dll";
+            string dllPath = @"./DH.BLLCLS.dll";
 
             if (!File.Exists(dllPath))
             {
