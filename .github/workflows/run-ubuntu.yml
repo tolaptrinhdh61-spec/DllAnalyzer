@@ -1,0 +1,23 @@
+name: run-ubuntu
+
+on:
+  push:
+    branches: ["main"]
+
+env:
+  APP_PROJECT: ./DllAnalyzer.csproj
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - run: dotnet restore $APP_PROJECT
+      - run: dotnet build -c Release --no-restore $APP_PROJECT
+      - run: dotnet test -c Release --no-build
+      - run: dotnet run -c Release --project $APP_PROJECT
